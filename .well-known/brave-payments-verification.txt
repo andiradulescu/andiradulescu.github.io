@@ -1,0 +1,4 @@
+This is a Brave Payments publisher verification file.
+
+Domain: andiradulescu.com
+Token: c074a579ede87815835bd2a0322bdbeb45f164b37c6f9b0ff821f41b1e6c2917
