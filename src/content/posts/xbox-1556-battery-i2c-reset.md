@@ -224,6 +224,6 @@ The most useful lesson from the wiring investigation was to distinguish schemati
 ## References
 
 - [AcidMods discussion of the Xbox rechargeable pack](https://acidmods.com/forum/index.php?topic=44752.0). Useful background, but the later active-high activation claim did not match our confirmed test.
-- RDC's _Xbox One Rechargeable Battery Model 1556_, revision 0.1, dated December 21, 2013. Local reference file: `XB1 1556 PnC Pack DRAFT.pdf`. This is a reverse-engineered draft schematic.
+- RDC's [Xbox One Rechargeable Battery Model 1556 schematic (PDF)](https://www.acidmods.com/RDC/XB1/Schematics/XB1%201556%20PnC%20Pack%20DRAFT.pdf), revision 0.1, dated December 21, 2013. This is a reverse-engineered draft schematic.
 - [Texas Instruments BQ24250/BQ24251/BQ24253 datasheet](https://www.ti.com/lit/ds/symlink/bq24250.pdf), especially section 9.6, Register Maps. The copy used here was SLUSBA1H, revised August 2015.
 - [Raspberry Pi Pico 2 W pinout](https://datasheets.raspberrypi.com/picow/pico-2-w-pinout.pdf).
