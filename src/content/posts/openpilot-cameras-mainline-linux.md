@@ -2,6 +2,7 @@
 title: "Getting openpilot’s cameras working on mainline Linux"
 description: "Bringing three cameras, tinygrad DMA-BUF inference, hardware encoding, and audio together on vamOS with Linux 7.2."
 pubDatetime: 2026-09-19T07:17:21Z
+modDatetime: 2026-09-19T08:19:18Z
 tags:
   - openpilot
   - linux
@@ -19,18 +20,20 @@ By the final bench test, all three cameras were delivering about 20 frames per s
 
 Getting there involved camera drivers, but also memory ownership, GPU submission overhead, codec firmware, and a speaker that was almost exactly 256 times too quiet. This post covers the most useful discoveries from the bring-up through September 17, 2026.
 
-The published work is on `liberation-day-7.2`. These links compare each branch with its repository’s `master`:
+These links compare the published branches with each repository’s `master`. The raylib Python wrapper uses `liberation-day`; the others use `liberation-day-7.2`:
 
 - [dorapilot/openpilot](https://github.com/dorapilot/openpilot/compare/master...liberation-day-7.2)
 - [dorapilot/msgq](https://github.com/dorapilot/msgq/compare/master...liberation-day-7.2)
 - [dorapilot/tinygrad](https://github.com/dorapilot/tinygrad/compare/master...liberation-day-7.2)
 - [commaai/vamOS](https://github.com/commaai/vamOS/compare/master...liberation-day-7.2)
+- [dorapilot/raylib](https://github.com/dorapilot/raylib/compare/master...liberation-day-7.2)
+- [dorapilot/raylib-python-cffi](https://github.com/dorapilot/raylib-python-cffi/compare/master...liberation-day)
 
-Some follow-up changes described here remain local and are not yet included in those comparisons.
+The tested follow-up fixes are now committed and pushed. A new raylib wheel and the corresponding vamOS package update are still pending.
 
 ## Keeping camerad close to stock
 
-The target was an SDM845 comma device, called `tizi` in the board sources, running Linux 7.2. We first rebuilt the non-camera work on a clean upstream openpilot base, then added the camera integration separately.
+The comma 3X was running Linux 7.2. We first rebuilt the non-camera work on a clean upstream openpilot base, then added the camera integration separately.
 
 The central decision was to preserve camerad’s sensor programming, exposure control, request scheduling, and completion handling. Trey’s Spectra port provided the kernel-side foundation for that interface. The road cameras use Qualcomm’s IFE processing path; the cabin camera goes through IFE RAW and then ICP/BPS.
 
@@ -112,13 +115,13 @@ The original encoder binary then passed repeated segment changes with the correc
 
 ## Bringing up the speaker and microphone
 
-Audio started with a disabled DSP and no ALSA card. [greatgitsby’s mainline-sound work in vamOS PR 128](https://github.com/commaai/vamOS/pull/128) supplied the foundation for clocks, routing, and separate playback/capture frontends. We adapted it to the tizi board and the running kernel, using firmware already installed on the device.
+Audio started with a disabled DSP and no ALSA card. [greatgitsby’s mainline-sound work in vamOS PR 128](https://github.com/commaai/vamOS/pull/128) supplied the foundation for clocks, routing, and separate playback/capture frontends. We adapted it for the comma 3X and Linux 7.2, using firmware already installed on the device.
 
 The first playback and capture commands both succeeded. The speaker was still silent.
 
 We played 997 Hz and 1733 Hz tones and looked for them in microphone recordings, with a muted-speaker control. Neither appeared. A digital loopback also failed, narrowing the problem to the playback transport.
 
-The routing selected the wrong data line. The shared description used SD1, while the tizi downstream source used **SD0**. Correcting it made both tones appear clearly in both microphone channels.
+The routing selected the wrong data line. The shared description used SD1, while the comma 3X downstream source used **SD0**. Correcting it made both tones appear clearly in both microphone channels.
 
 Ordinary `soundd` then exposed a second problem: it was about **48 dB too quiet**. Direct tests used S16_LE samples, while PortAudio selected S24_LE. Equal-level playback measured roughly a **1/256 amplitude ratio**.
 
@@ -155,7 +158,7 @@ The final test started cold, without opening camera Preview or warming the model
 
 There were no observed camera gaps or timestamp mismatches, process failures, or `modeldLagging` events. Recording reconciliation found no internal losses; final messages arriving at the logging shutdown boundary were accounted for separately.
 
-That was the milestone I wanted: the cameras, models, display, audio, and encoders working together through ordinary openpilot lifecycle transitions. It was a bench result; road testing and final consolidation of the tested changes remained ahead.
+That was the milestone I wanted: the cameras, models, display, audio, and encoders working together through ordinary openpilot lifecycle transitions. It was a bench result; road testing remains ahead.
 
 Touch was the most visible unfinished issue. We fixed a short-tap click-through and raylib’s initialization of cached coordinates, but later physical testing still caught a contact held at the Linux input layer after my finger was off the screen. That investigation remained open.
 
