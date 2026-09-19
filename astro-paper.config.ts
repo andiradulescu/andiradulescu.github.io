@@ -28,7 +28,11 @@ export default defineAstroPaperConfig({
     search: "pagefind",
   },
   socials: [
-    { name: "github", url: "https://github.com/andiradulescu" },
+    {
+      name: "github",
+      url: "https://github.com/andiradulescu",
+      linkTitle: "Andi Radulescu on GitHub",
+    },
     { name: "x", url: "https://x.com/andiradulescu" },
     {
       name: "linkedin",
