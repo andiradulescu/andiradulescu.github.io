@@ -2,7 +2,7 @@
 title: "Getting openpilot’s cameras working on mainline Linux"
 description: "Bringing three cameras, tinygrad DMA-BUF inference, hardware encoding, and audio together on vamOS with Linux 7.2."
 pubDatetime: 2026-09-19T07:17:21Z
-modDatetime: 2026-09-19T08:19:18Z
+modDatetime: 2026-09-19T08:47:35Z
 tags:
   - openpilot
   - linux
@@ -35,7 +35,7 @@ The tested follow-up fixes are now committed and pushed. A new raylib wheel and 
 
 The comma 3X was running Linux 7.2. We first rebuilt the non-camera work on a clean upstream openpilot base, then added the camera integration separately.
 
-The central decision was to preserve camerad’s sensor programming, exposure control, request scheduling, and completion handling. Trey’s Spectra port provided the kernel-side foundation for that interface. The road cameras use Qualcomm’s IFE processing path; the cabin camera goes through IFE RAW and then ICP/BPS.
+I kept camerad’s sensor programming, exposure control, request scheduling, and completion handling unchanged. Trey’s Spectra port provided the kernel-side foundation for that interface. The road cameras use Qualcomm’s IFE processing path; the cabin camera goes through IFE RAW and then ICP/BPS.
 
 The resulting frame path looks like this:
 
@@ -55,7 +55,7 @@ DMA-BUF lets these components share an allocation through a file descriptor. It 
 
 Most kernel iteration used loadable modules. Device-tree and GPIO configuration prerequisites still required two boot-only updates, but we kept the same slot and did not flash the system image. Once those prerequisites were in place, module-based iteration made the driver work much easier.
 
-It also forced us to test teardown properly. Early versions could capture frames yet leave workqueues or device-tree references behind on removal. We fixed those ownership paths and checked load, capture, stop, unload, and reload separately. A successful `insmod` was only one step.
+It also forced us to test teardown properly. Early versions could capture frames yet leave workqueues or device-tree references behind on removal. We fixed those ownership paths and checked load, capture, stop, unload, and reload separately.
 
 The main camera-control and sensor code stayed identical to the pinned upstream version. The userspace changes concentrated on buffer access, image stride handling, and the consumers of those frames.
 
@@ -75,8 +75,6 @@ A second memory bug appeared in the camera driver’s command buffers. Values wr
 
 There was also a missing `__GFP_COMP` flag on larger allocations whose freeing path relied on compound-page metadata. A bounded allocation test exposed progressive memory loss before the correction and passed afterward.
 
-These were small changes with consequences across the entire pipeline. A frame can have the right format and a valid descriptor while the memory underneath it is still being mishandled.
-
 ## From 83 ms to 29 ms in the driving model
 
 Once the trained driving model consumed live camera frames, it ran at a median **82.71 ms**. At 20 Hz, the frame interval is 50 ms.
@@ -85,7 +83,7 @@ Profiling found the expensive part on the CPU. Across 61 inferences, tinygrad pe
 
 A sorted allocation index and binary search removed the repeated scan. The index was invalidated at the relevant allocation, import, and free boundaries so aliases retained their existing lifetime behavior.
 
-With the same model artifact, median inference fell to **29.458 ms**, with a **31.640 ms p95** in the measured samples after warmup.
+With the same model artifact, median inference fell to **29.5 ms**, with a **31.6 ms p95** in the measured samples after warmup.
 
 Full-stack testing revealed two more costs. The MSM wait path was spinning while the GPU worked. Using the kernel fence wait reduced the benchmark’s waiting CPU fraction from roughly **98% to 0.5%**, without materially changing GPU wait duration.
 
@@ -127,7 +125,7 @@ Ordinary `soundd` then exposed a second problem: it was about **48 dB too quiet*
 
 The firmware expected the 24 significant bits in the upper part of the sample container. Advertising S32_LE with 24 significant MSBs fixed the alignment. The tested formats then agreed in normalized amplitude within 0.22%.
 
-Unmodified `soundd` and `micd` passed repeated start/stop tests, followed by normal startup and sleep/wake checks. This was a useful reminder to test the physical signal as well as the API: a running PCM stream had told us very little about what came out of the speaker.
+Unmodified `soundd` and `micd` passed repeated start/stop tests, followed by normal startup and sleep/wake checks.
 
 ## Display and startup needed their own fixes
 
@@ -135,9 +133,9 @@ Displaying camera frames required an explicit linear layout for the DMA-BUF impo
 
 A less obvious problem appeared during repeated openpilot launches. The display service retained a shared DRM file, and the startup spinner was always terminated with SIGKILL. Its graphics cleanup never ran, leaving about **102 MiB per tested spinner** attached to the shared client.
 
-Replacing SIGKILL with SIGINT released memory but crashed during graphics initialization. The successful approach was cooperative stdin EOF: let initialization finish, exit the loop, and run the existing cleanup. Three ordinary manager launch/stop cycles then returned to the same measured graphics-memory baseline.
+Replacing SIGKILL with SIGINT released memory but crashed during graphics initialization. Closing the spinner’s stdin let it finish initialization and clean up normally. Three ordinary manager launch/stop cycles then returned to the same measured graphics-memory baseline.
 
-Presentation ownership needed attention too. Waiting for a generic vblank did not prove that a particular page flip had completed before its buffer was released. An asynchronous replacement also had to contend with events from other clients sharing the DRM file. The tested solution used checked blocking presentation and retained the current buffer if presentation failed.
+The display could release a buffer before its page flip finished. Waiting for a generic vblank did not guarantee that the pending flip had completed. An asynchronous replacement also had to contend with events from other clients sharing the DRM file. The tested solution used checked blocking presentation and retained the current buffer if presentation failed.
 
 Cold camera startup revealed another ordering issue. The first sensor-ID read could return zero, while later attempts worked. In the downstream source, clock pinmux setup preceded the sensor’s timed power sequence; our port selected it afterward. Moving CCI initialization before that sequence passed a cold test and the final integrated run. The result supports the ordering change, although we did not measure the electrical waveforms or establish repeated cold-boot reliability.
 
@@ -158,8 +156,4 @@ The final test started cold, without opening camera Preview or warming the model
 
 There were no observed camera gaps or timestamp mismatches, process failures, or `modeldLagging` events. Recording reconciliation found no internal losses; final messages arriving at the logging shutdown boundary were accounted for separately.
 
-That was the milestone I wanted: the cameras, models, display, audio, and encoders working together through ordinary openpilot lifecycle transitions. It was a bench result; road testing remains ahead.
-
-Touch was the most visible unfinished issue. We fixed a short-tap click-through and raylib’s initialization of cached coordinates, but later physical testing still caught a contact held at the Linux input layer after my finger was off the screen. That investigation remained open.
-
-The work began with “make the cameras work.” It ended up being a series of ownership and timing problems: who can use a buffer, when it can be reused, which initialization must happen first, and what cleanup actually completes. Keeping those questions testable was what turned three working camera streams into a working full-stack bench.
+Touch still occasionally gets stuck. We fixed a short-tap click-through and raylib’s initialization of cached coordinates, but later testing still caught Linux reporting a finger down after I had lifted it. That investigation is still open, and road testing remains ahead.
