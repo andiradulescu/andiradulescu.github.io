@@ -2,7 +2,7 @@
 title: "Getting openpilot’s cameras working on mainline Linux"
 description: "Bringing three cameras, tinygrad DMA-BUF inference, hardware encoding, and audio together on vamOS with Linux 7.2."
 pubDatetime: 2026-09-19T07:17:21Z
-modDatetime: 2026-09-19T08:47:35Z
+modDatetime: 2026-09-19T08:59:37Z
 tags:
   - openpilot
   - linux
@@ -14,11 +14,11 @@ featured: false
 
 ## Introduction
 
-I wanted to run openpilot on vamOS with a mainline Linux kernel, keeping camera control where it belongs: in openpilot. Starting with dorapilot, my openpilot fork, and Trey’s Spectra camera port, I worked with Codex to bring up the three cameras and connect their frames to tinygrad’s GPU runtime through DMA-BUF.
+I wanted to run openpilot on vamOS with a mainline Linux kernel and keep all three cameras under camerad’s control. Starting with dorapilot, my openpilot fork, and Trey’s Spectra camera port, I worked with Codex to bring up the three cameras and connect their frames to tinygrad’s GPU runtime through DMA-BUF.
 
 By the final bench test, all three cameras were delivering about 20 frames per second while the driving model, driver monitoring, UI, audio, and hardware encoders ran together. The test produced 64 videos containing 75,879 decoded frames, checked against the recording logs.
 
-Getting there involved camera drivers, but also memory ownership, GPU submission overhead, codec firmware, and a speaker that was almost exactly 256 times too quiet. This post covers the most useful discoveries from the bring-up through September 17, 2026.
+The work also required fixes to GPU submission, video encoding, and audio playback. The results below cover testing through September 17, 2026.
 
 These links compare the published branches with each repository’s `master`. The raylib Python wrapper uses `liberation-day`; the others use `liberation-day-7.2`:
 
@@ -59,13 +59,13 @@ It also forced us to test teardown properly. Early versions could capture frames
 
 The main camera-control and sensor code stayed identical to the pinned upstream version. The userspace changes concentrated on buffer access, image stride handling, and the consumers of those frames.
 
-## Sharing the right frame, not just the right buffer
+## Verifying DMA-BUF frames
 
 Our first GPU test used changing synthetic DMA-heap patterns. Tinygrad imported them through MSM DRM and produced the expected arithmetic results. That established the basic import path.
 
 Real cameras added a timing constraint. The ring had 18 slots at 20 Hz, giving a frame about **0.9 seconds before its allocation could be reused**. The verifier’s first GPU/JIT setup took about **2.55 seconds**. By the time it compared the pixels, it was looking at a newer frame in the same buffer.
 
-The test itself had created an apparent coherency failure.
+Our test was comparing different frames.
 
 We warmed the verifier on dummy input, consumed the latest frames, and checked frame identity before and after access. The corrected test covered 120 changing frames per camera, every ring slot, and 8,192 sampled Y/UV bytes per frame, with exact CPU/GPU agreement.
 
@@ -77,7 +77,7 @@ There was also a missing `__GFP_COMP` flag on larger allocations whose freeing p
 
 ## From 83 ms to 29 ms in the driving model
 
-Once the trained driving model consumed live camera frames, it ran at a median **82.71 ms**. At 20 Hz, the frame interval is 50 ms.
+Once the trained driving model consumed live camera frames, it ran at a median **82.7 ms**. At 20 Hz, the frame interval is 50 ms.
 
 Profiling found the expensive part on the CPU. Across 61 inferences, tinygrad performed 25,986 linear allocation lookups, spending **3.388 of 3.766 seconds** of submission preparation finding which allocation contained an address.
 
@@ -87,15 +87,15 @@ With the same model artifact, median inference fell to **29.5 ms**, with a **31.
 
 Full-stack testing revealed two more costs. The MSM wait path was spinning while the GPU worked. Using the kernel fence wait reduced the benchmark’s waiting CPU fraction from roughly **98% to 0.5%**, without materially changing GPU wait duration.
 
-Then there was startup. Lazy JIT linking consumed about **279 ms of CPU time** on the first live camera call. Preparing the selected captured programs during model construction moved that work before frame processing. We checked that preparation executed no inference, advanced no model history, and preserved outputs and state exactly. Driver monitoring needed the same treatment for its warp and model.
+Lazy JIT linking consumed about **279 ms of CPU time** on the first live camera call. Preparing the selected captured programs during model construction moved that work before frame processing. We checked that preparation executed no inference, advanced no model history, and preserved outputs and state exactly. Driver monitoring needed the same treatment for its warp and model.
 
-A final startup improvement was simpler: modeld eagerly imported car interfaces through a dependency used only by demo mode. Moving that import into the demo branch avoided the work during normal startup.
+Normal modeld startup also imported car interfaces through a dependency used only by demo mode. Moving that import into the demo branch avoided the work during normal startup.
 
-None of these changes required changing model priorities, CPU affinity, or the lag-alert threshold. They removed work from the existing execution path.
+None of these changes required changing model priorities, CPU affinity, or the lag-alert threshold.
 
-## The encoder worked until it had to stop
+## Encoding and segment rollover
 
-Camera capture was only part of the job. Openpilot’s encoder expected the downstream Qualcomm interface; mainline Venus exposed a different V4L2 boundary. We adapted buffer queuing, codec controls, cropping, and drain/restart behavior while keeping full-resolution camera DMA-BUFs as inputs.
+Openpilot’s encoder expected the downstream Qualcomm interface; mainline Venus used a different V4L2 interface. We adapted buffer queuing, codec controls, cropping, and drain/restart behavior while keeping full-resolution camera DMA-BUFs as inputs.
 
 Encoding a short clip was relatively easy. Ending a segment and starting the next one exposed the harder problems.
 
@@ -121,17 +121,17 @@ We played 997 Hz and 1733 Hz tones and looked for them in microphone recordings,
 
 The routing selected the wrong data line. The shared description used SD1, while the comma 3X downstream source used **SD0**. Correcting it made both tones appear clearly in both microphone channels.
 
-Ordinary `soundd` then exposed a second problem: it was about **48 dB too quiet**. Direct tests used S16_LE samples, while PortAudio selected S24_LE. Equal-level playback measured roughly a **1/256 amplitude ratio**.
+With `soundd`, playback was much quieter. Direct tests used S16_LE samples, while PortAudio selected S24_LE. At the same input level, S24_LE playback measured about **48 dB below S16_LE**, or roughly **1/256 of its amplitude**.
 
 The firmware expected the 24 significant bits in the upper part of the sample container. Advertising S32_LE with 24 significant MSBs fixed the alignment. The tested formats then agreed in normalized amplitude within 0.22%.
 
 Unmodified `soundd` and `micd` passed repeated start/stop tests, followed by normal startup and sleep/wake checks.
 
-## Display and startup needed their own fixes
+## Display cleanup and camera startup
 
 Displaying camera frames required an explicit linear layout for the DMA-BUF import and a separate OpenGL external texture for each EGL image. Reusing a texture name already created for a 2D target caused `GL_INVALID_OPERATION`.
 
-A less obvious problem appeared during repeated openpilot launches. The display service retained a shared DRM file, and the startup spinner was always terminated with SIGKILL. Its graphics cleanup never ran, leaving about **102 MiB per tested spinner** attached to the shared client.
+Repeated openpilot launches leaked graphics memory. The display service retained a shared DRM file, and the startup spinner was always terminated with SIGKILL. Its graphics cleanup never ran, leaving about **102 MiB per tested spinner** attached to the shared client.
 
 Replacing SIGKILL with SIGINT released memory but crashed during graphics initialization. Closing the spinner’s stdin let it finish initialization and clean up normally. Three ordinary manager launch/stop cycles then returned to the same measured graphics-memory baseline.
 
