@@ -1,7 +1,7 @@
 ---
 title: "Tinygrad on mainline Linux, Part III: the current fork PRs"
 description: "Porting MSM to HCQ2, fixing JIT views and GPU timestamps, and preparing a narrower Adreno 630 implementation for upstream review."
-pubDatetime: 2026-09-19T09:47:24Z
+pubDatetime: 2026-09-13T09:00:00Z
 tags:
   - tinygrad
   - linux
@@ -11,7 +11,7 @@ draft: false
 featured: false
 ---
 
-As of September 19, 2026, the current MSM DRM implementation is in draft PRs on my tinygrad fork. It uses the shared QCOM runtime, has recorded execution on an Adreno 630 through both mainline MSM DRM and downstream KGSL, and still needs to be submitted upstream.
+As of September 13, 2026, the current MSM DRM implementation is in draft PRs on my tinygrad fork. It uses the shared QCOM runtime, has recorded execution on an Adreno 630 through both mainline MSM DRM and downstream KGSL, and still needs to be submitted upstream.
 
 Getting from [the rejected July rewrite](/posts/tinygrad-msm-drm-part-2/) to this version involved more than reducing its diff. Hardware testing found additional failures, upstream replaced the queue machinery underneath the branch, and review found bugs that belonged outside the MSM implementation.
 
@@ -59,13 +59,13 @@ A separate host-mapping gap became [PR #22](https://github.com/andiradulescu/tin
 
 The current review stack is:
 
-| Fork PR                                                  | Purpose                                     | Head checked on September 19 |
-| -------------------------------------------------------- | ------------------------------------------- | ---------------------------- |
-| [#17](https://github.com/andiradulescu/tinygrad/pull/17) | Capture realized contiguous JIT input views | `14e5bd966`                  |
-| [#18](https://github.com/andiradulescu/tinygrad/pull/18) | Correct HCQ2 profiling timestamps           | `5d6c26dd3`                  |
-| [#20](https://github.com/andiradulescu/tinygrad/pull/20) | Add MSM DRM through the QCOM interface      | `c747d96b6`                  |
-| [#21](https://github.com/andiradulescu/tinygrad/pull/21) | Track the LLVM view-alignment bug           | `cc791ad4a`                  |
-| [#22](https://github.com/andiradulescu/tinygrad/pull/22) | Implement QCOM host-buffer mapping          | `d0ded260e`                  |
+| Fork PR                                                  | Purpose                                     | Head revision |
+| -------------------------------------------------------- | ------------------------------------------- | ------------- |
+| [#17](https://github.com/andiradulescu/tinygrad/pull/17) | Capture realized contiguous JIT input views | `14e5bd966`   |
+| [#18](https://github.com/andiradulescu/tinygrad/pull/18) | Correct HCQ2 profiling timestamps           | `5d6c26dd3`   |
+| [#20](https://github.com/andiradulescu/tinygrad/pull/20) | Add MSM DRM through the QCOM interface      | `c747d96b6`   |
+| [#21](https://github.com/andiradulescu/tinygrad/pull/21) | Track the LLVM view-alignment bug           | `cc791ad4a`   |
+| [#22](https://github.com/andiradulescu/tinygrad/pull/22) | Implement QCOM host-buffer mapping          | `d0ded260e`   |
 
 The branch chain is `#17 → #18 → #20 → #22`; #21 is based directly on master. The small fixes can be prepared independently for upstream review. Their current stacking is a way to test the combined implementation, not a requirement that upstream accept them as one change.
 
