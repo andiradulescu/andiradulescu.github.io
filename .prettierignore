@@ -18,3 +18,6 @@
 !astro-paper.config.ts
 !AGENTS.md
 !PUBLISHING.md
+
+# Preserve the verification file exactly as downloaded from Google.
+/public/google1a00b47570b9e1ef.html
