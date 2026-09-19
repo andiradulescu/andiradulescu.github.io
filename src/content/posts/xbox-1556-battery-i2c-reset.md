@@ -1,7 +1,7 @@
 ---
 title: "Fixing an Xbox One rechargeable battery with a Pico 2 W and I²C"
 description: "Diagnosing and resetting an Xbox model 1556 battery charger over I²C, with a verified pinout and before-and-after register readings."
-pubDatetime: 2026-09-18T21:50:51Z
+pubDatetime: 2026-09-18T12:00:00Z
 tags:
   - hardware
   - debugging
