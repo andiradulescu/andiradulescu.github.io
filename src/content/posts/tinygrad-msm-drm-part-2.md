@@ -1,7 +1,7 @@
 ---
 title: "Tinygrad on mainline Linux, Part II: the rejected Codex rewrite"
 description: "Reusing QCOM, fixing an instruction-size mismatch, and discovering why green checks and device runs were not enough for an upstream contribution."
-pubDatetime: 2026-09-19T09:47:23Z
+pubDatetime: 2026-07-30T09:00:00Z
 tags:
   - tinygrad
   - linux

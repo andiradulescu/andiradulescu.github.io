@@ -1,7 +1,7 @@
 ---
 title: "Tinygrad on mainline Linux, Part I: the Claude implementation"
 description: "The first MSM DRM backend, its buffer-lifetime experiments, and why passing small GPU tests did not make it a working openpilot runtime."
-pubDatetime: 2026-09-19T09:47:22Z
+pubDatetime: 2026-07-26T18:00:00Z
 tags:
   - tinygrad
   - linux
