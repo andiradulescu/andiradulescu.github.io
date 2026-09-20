@@ -29,7 +29,7 @@ These links compare the published `liberation-day-7.2` branches with each reposi
 - [dorapilot/raylib](https://github.com/dorapilot/raylib/compare/master...liberation-day-7.2)
 - [dorapilot/raylib-python-cffi](https://github.com/dorapilot/raylib-python-cffi/compare/master...liberation-day-7.2)
 
-The tested follow-up fixes are now committed and pushed.
+The tested follow-up fixes are now committed and pushed. The installable images are published as the [vamOS Liberation Day 7.2 release](https://github.com/commaai/vamOS/releases/tag/liberation-day-7.2), an experimental build for the comma 3X and comma four. To run it, pick Custom Software in the AGNOS setup screen and enter `https://installer.comma.ai/dorapilot/liberation-day-7.2`, which installs the branch first and lets its startup pull the OS update.
 
 ## Keeping camerad close to stock
 
