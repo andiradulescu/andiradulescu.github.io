@@ -2,7 +2,7 @@
 title: "Getting openpilot’s cameras working on mainline Linux"
 description: "Bringing three cameras, tinygrad DMA-BUF inference, hardware encoding, and audio together on vamOS with Linux 7.2."
 pubDatetime: 2026-09-19T07:17:21Z
-modDatetime: 2026-09-19T08:59:37Z
+modDatetime: 2026-09-20T20:28:17Z
 tags:
   - openpilot
   - linux
@@ -18,18 +18,18 @@ I wanted to run openpilot on vamOS with a mainline Linux kernel and keep all thr
 
 By the final bench test, all three cameras were delivering about 20 frames per second while the driving model, driver monitoring, UI, audio, and hardware encoders ran together. The test produced 64 videos containing 75,879 decoded frames, checked against the recording logs.
 
-The work also required fixes to GPU submission, video encoding, and audio playback. The results below cover testing through September 17, 2026.
+The work also required fixes to GPU submission, video encoding, and audio playback. The bench results below cover testing through September 19, 2026, followed by a road test on September 20.
 
-These links compare the published branches with each repository’s `master`. The raylib Python wrapper uses `liberation-day`; the others use `liberation-day-7.2`:
+These links compare the published `liberation-day-7.2` branches with each repository’s `master`:
 
 - [dorapilot/openpilot](https://github.com/dorapilot/openpilot/compare/master...liberation-day-7.2)
 - [dorapilot/msgq](https://github.com/dorapilot/msgq/compare/master...liberation-day-7.2)
 - [dorapilot/tinygrad](https://github.com/dorapilot/tinygrad/compare/master...liberation-day-7.2)
 - [commaai/vamOS](https://github.com/commaai/vamOS/compare/master...liberation-day-7.2)
 - [dorapilot/raylib](https://github.com/dorapilot/raylib/compare/master...liberation-day-7.2)
-- [dorapilot/raylib-python-cffi](https://github.com/dorapilot/raylib-python-cffi/compare/master...liberation-day)
+- [dorapilot/raylib-python-cffi](https://github.com/dorapilot/raylib-python-cffi/compare/master...liberation-day-7.2)
 
-The tested follow-up fixes are now committed and pushed. A new raylib wheel and the corresponding vamOS package update are still pending.
+The tested follow-up fixes are now committed and pushed. The [raylib 6.0.0.0 wheel](https://github.com/dorapilot/raylib-python-cffi/releases/tag/liberation-day-7.2-649d19c33175fdb7800e3ccbe988f140e659cfce) is published, and vamOS installs it.
 
 ## Keeping camerad close to stock
 
@@ -156,4 +156,20 @@ The final test started cold, without opening camera Preview or warming the model
 
 There were no observed camera gaps or timestamp mismatches, process failures, or `modeldLagging` events. Recording reconciliation found no internal losses; final messages arriving at the logging shutdown boundary were accounted for separately.
 
-Touch still occasionally gets stuck. We fixed a short-tap click-through and raylib’s initialization of cached coordinates, but later testing still caught Linux reporting a finger down after I had lifted it. That investigation is still open, and road testing remains ahead.
+Touch still occasionally gets stuck. We fixed a short-tap click-through and raylib’s initialization of cached coordinates, but later testing still caught Linux reporting a finger down after I had lifted it. That investigation is still open.
+
+## On the road
+
+On September 20, 2026 I drove the stack for real: 133 recorded segments, about 2 hours 13 minutes and 224 km in a Skoda Kodiaq Mk1, with stock ACC for longitudinal and openpilot doing lateral control only. It was engaged for 92% of the logged samples, and every disengagement was driver initiated, through cruise cancel, the pedals, or a steering override.
+
+Reading the route’s logs afterwards with openpilot’s own `LogReader` and `CANParser`:
+
+| Check                  | Result over the drive                                                       |
+| ---------------------- | --------------------------------------------------------------------------- |
+| Encoder streams        | 158,872 frames each on road, wide, cabin, and qcam, with no gaps            |
+| Driving model          | 27.0 ms mean, 27.6 ms p95, 53.9 ms max, and no dropped frames               |
+| Control loop at 100 Hz | 12 ms p99, 14.4 ms max, with no skipped cycle                               |
+| Thermals               | within limits throughout, 68.8 °C CPU and 70.4 °C GPU maximum               |
+| Faults                 | no camera malfunction, communication issue, CAN error, or controls mismatch |
+
+Three problems did show up, none of them in the driving path. `timed` could never set the clock, because the `comma` user on vamOS has no capability to do it, which is why the route is numbered instead of dated and its files claim January 1970. The ublox almanac save is rejected on every boot, so the receiver cold starts and this drive had no GPS fix for its first 12 minutes. The UI also swings between 60 and 30 fps on freedreno, visible but harmless while driving.
