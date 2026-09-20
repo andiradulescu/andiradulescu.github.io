@@ -1,7 +1,8 @@
 ---
-title: "Tinygrad on mainline Linux, Part III: the current fork PRs"
+title: "Tinygrad on mainline Linux, Part III: the draft PRs"
 description: "Porting MSM to HCQ2, fixing JIT views and GPU timestamps, and preparing a narrower Adreno 630 implementation for upstream review."
 pubDatetime: 2026-09-13T09:00:00Z
+modDatetime: 2026-09-19T18:45:00Z
 tags:
   - tinygrad
   - linux
@@ -11,7 +12,7 @@ draft: false
 featured: false
 ---
 
-As of September 13, 2026, the current MSM DRM implementation is in draft PRs on my tinygrad fork. It uses the shared QCOM runtime, has recorded execution on an Adreno 630 through both mainline MSM DRM and downstream KGSL, and still needs to be submitted upstream.
+As of September 13, 2026, the current MSM DRM implementation is in [draft PRs on my tinygrad fork](https://github.com/andiradulescu/tinygrad/pulls). It uses the shared QCOM runtime, has recorded execution on an Adreno 630 through both mainline MSM DRM and downstream KGSL, and still needs to be submitted upstream.
 
 Getting from [the rejected July rewrite](/posts/tinygrad-msm-drm-part-2/) to this version involved more than reducing its diff. Hardware testing found additional failures, upstream replaced the queue machinery underneath the branch, and review found bugs that belonged outside the MSM implementation.
 
