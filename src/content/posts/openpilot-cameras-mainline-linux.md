@@ -29,7 +29,7 @@ These links compare the published `liberation-day-7.2` branches with each reposi
 - [dorapilot/raylib](https://github.com/dorapilot/raylib/compare/master...liberation-day-7.2)
 - [dorapilot/raylib-python-cffi](https://github.com/dorapilot/raylib-python-cffi/compare/master...liberation-day-7.2)
 
-The tested follow-up fixes are now committed and pushed. The [raylib 6.0.0.0 wheel](https://github.com/dorapilot/raylib-python-cffi/releases/tag/liberation-day-7.2-649d19c33175fdb7800e3ccbe988f140e659cfce) is published, and vamOS installs it.
+The tested follow-up fixes are now committed and pushed.
 
 ## Keeping camerad close to stock
 
@@ -172,4 +172,4 @@ Reading the route’s logs afterwards with openpilot’s own `LogReader` and `CA
 | Thermals               | within limits throughout, 68.8 °C CPU and 70.4 °C GPU maximum               |
 | Faults                 | no camera malfunction, communication issue, CAN error, or controls mismatch |
 
-Three problems did show up, none of them in the driving path. `timed` could never set the clock, because the `comma` user on vamOS has no capability to do it, which is why the route is numbered instead of dated and its files claim January 1970. The ublox almanac save is rejected on every boot, so the receiver cold starts and this drive had no GPS fix for its first 12 minutes. The UI also swings between 60 and 30 fps on freedreno, visible but harmless while driving.
+The UI does swing between 60 and 30 fps on freedreno, visible but harmless while driving.
