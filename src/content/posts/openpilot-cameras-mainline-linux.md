@@ -14,7 +14,7 @@ featured: false
 
 ## Introduction
 
-I wanted to run openpilot on vamOS with a mainline Linux kernel and keep all three cameras under camerad’s control. Starting with dorapilot, my openpilot fork, and Trey’s Spectra camera port, I worked with Codex to bring up the three cameras and connect their frames to tinygrad’s GPU runtime through DMA-BUF.
+I wanted to run openpilot on vamOS with a mainline Linux kernel and keep all three cameras under camerad’s control. Starting with dorapilot, my openpilot fork, and Trey’s Spectra camera port, I worked with Codex to bring up the three cameras and connect their frames to [tinygrad’s GPU runtime](/posts/tinygrad-msm-drm-part-3/) through DMA-BUF.
 
 By the final bench test, all three cameras were delivering about 20 frames per second while the driving model, driver monitoring, UI, audio, and hardware encoders ran together. The test produced 64 videos containing 75,879 decoded frames, checked against the recording logs.
 
@@ -61,7 +61,7 @@ The main camera-control and sensor code stayed identical to the pinned upstream 
 
 ## Verifying DMA-BUF frames
 
-Our first GPU test used changing synthetic DMA-heap patterns. Tinygrad imported them through MSM DRM and produced the expected arithmetic results. That established the basic import path.
+Our first GPU test used changing synthetic DMA-heap patterns. Tinygrad imported them through [MSM DRM](/posts/tinygrad-msm-drm-part-3/) and produced the expected arithmetic results. That established the basic import path.
 
 Real cameras added a timing constraint. The ring had 18 slots at 20 Hz, giving a frame about **0.9 seconds before its allocation could be reused**. The verifier’s first GPU/JIT setup took about **2.55 seconds**. By the time it compared the pixels, it was looking at a newer frame in the same buffer.
 
@@ -160,7 +160,7 @@ Touch still occasionally gets stuck. We fixed a short-tap click-through and rayl
 
 ## On the road
 
-On September 20, 2026 I drove the stack for real: 133 recorded segments, about 2 hours 13 minutes and 224 km in a Skoda Kodiaq Mk1, with stock ACC for longitudinal and openpilot doing lateral control only. It was engaged for 92% of the logged samples, and every disengagement was driver initiated, through cruise cancel, the pedals, or a steering override.
+On September 20, 2026 I drove the stack for real on a comma four: 133 recorded segments, about 2 hours 13 minutes and 224 km in a Skoda Kodiaq Mk1, with stock ACC for longitudinal and openpilot doing lateral control only. It was engaged for 92% of the logged samples, and every disengagement was driver initiated, through cruise cancel, the pedals, or a steering override.
 
 Reading the route’s logs afterwards with openpilot’s own `LogReader` and `CANParser`:
 
